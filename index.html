@@ -53,6 +53,13 @@
         <form id="blogForm">
             <input type="text" id="title" placeholder="Post Title" required>
             <textarea id="content" placeholder="Write your content..." rows="6" required></textarea>
+            <div class="image-upload-section">
+                <label for="imageUpload" class="image-upload-label">
+                    📷 Add Images (Optional - Multiple images supported)
+                </label>
+                <input type="file" id="imageUpload" accept="image/*" multiple class="image-upload-input">
+                <div id="imagePreview" class="image-preview"></div>
+            </div>
             <button type="submit">Publish</button>
         </form>
     </section>

@@ -101,6 +101,74 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
+    // -------- Multiple Image Upload Preview --------
+    const imageUpload = document.getElementById("imageUpload");
+    const imagePreview = document.getElementById("imagePreview");
+    let selectedImages = [];
+    
+    if (imageUpload && imagePreview) {
+        imageUpload.addEventListener("change", (e) => {
+            const files = Array.from(e.target.files);
+            if (files.length > 0) {
+                selectedImages = [];
+                imagePreview.innerHTML = '<div class="loading-text">Loading images...</div>';
+                
+                let loadedCount = 0;
+                files.forEach((file, index) => {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        selectedImages.push({
+                            data: e.target.result,
+                            name: file.name,
+                            index: index
+                        });
+                        loadedCount++;
+                        
+                        if (loadedCount === files.length) {
+                            displayImagePreviews();
+                        }
+                    };
+                    reader.readAsDataURL(file);
+                });
+            }
+        });
+    }
+
+    // -------- Display Image Previews --------
+    function displayImagePreviews() {
+        if (selectedImages.length === 0) {
+            imagePreview.innerHTML = '';
+            return;
+        }
+        
+        let previewHTML = '<div class="preview-gallery">';
+        selectedImages.forEach((img, index) => {
+            previewHTML += `
+                <div class="preview-item">
+                    <img src="${img.data}" alt="Preview ${index + 1}" class="preview-image">
+                    <button type="button" class="remove-single-image-btn" onclick="removeSingleImage(${index})">×</button>
+                </div>
+            `;
+        });
+        previewHTML += '</div>';
+        previewHTML += '<button type="button" class="remove-all-images-btn" onclick="removeAllImages()">Remove All Images</button>';
+        
+        imagePreview.innerHTML = previewHTML;
+    }
+
+    // -------- Remove Single Image Function --------
+    window.removeSingleImage = function(index) {
+        selectedImages.splice(index, 1);
+        displayImagePreviews();
+    };
+
+    // -------- Remove All Images Function --------
+    window.removeAllImages = function() {
+        selectedImages = [];
+        if (imageUpload) imageUpload.value = '';
+        if (imagePreview) imagePreview.innerHTML = '';
+    };
+
     // -------- Blog Post Submission --------
     if (blogForm) {
         blogForm.addEventListener("submit", (e) => {
@@ -122,22 +190,32 @@ document.addEventListener("DOMContentLoaded", () => {
                 return;
             }
 
-            const post = { 
-                title, 
-                content, 
-                author, 
-                date: new Date().toISOString(), 
-                likes: 0, 
-                likedBy: [] 
-            };
-
-            let posts = JSON.parse(localStorage.getItem("posts")) || [];
-            posts.push(post);
-            localStorage.setItem("posts", JSON.stringify(posts));
-
-            appendPostToFeed(post);
-            blogForm.reset();
+            // Handle multiple image uploads
+            const images = selectedImages.map(img => img.data);
+            savePostWithImages(title, content, author, images);
         });
+    }
+
+    // -------- Save Post with Multiple Images --------
+    function savePostWithImages(title, content, author, images) {
+        const post = { 
+            title, 
+            content, 
+            author, 
+            date: new Date().toISOString(), 
+            likes: 0, 
+            likedBy: [],
+            images: images.length > 0 ? images : null
+        };
+
+        let posts = JSON.parse(localStorage.getItem("posts")) || [];
+        posts.push(post);
+        localStorage.setItem("posts", JSON.stringify(posts));
+
+        appendPostToFeed(post);
+        blogForm.reset();
+        selectedImages = [];
+        if (imagePreview) imagePreview.innerHTML = '';
     }
 
     // -------- Load Existing Posts on Page Load --------
@@ -157,8 +235,23 @@ document.addEventListener("DOMContentLoaded", () => {
         const postDiv = document.createElement("div");
         postDiv.className = "post-card";
         postDiv.dataset.date = post.date;
+        // Handle both old single image format and new multiple images format
+        let imagesHTML = '';
+        if (post.images && post.images.length > 0) {
+            // New multiple images format
+            imagesHTML = '<div class="post-images-gallery">';
+            post.images.forEach((img, index) => {
+                imagesHTML += `<img src="${img}" alt="Post image ${index + 1}" class="post-image">`;
+            });
+            imagesHTML += '</div>';
+        } else if (post.image) {
+            // Old single image format (for backward compatibility)
+            imagesHTML = `<img src="${post.image}" alt="Post image" class="post-image">`;
+        }
+
         postDiv.innerHTML = `
             <h3 class="post-title">${post.title}</h3>
+            ${imagesHTML}
             <p class="post-excerpt">${post.content}</p>
             <small class="post-meta">by ${post.author} | ${new Date(post.date).toLocaleString()}</small>
             <div class="post-actions">
